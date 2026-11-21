@@ -109,12 +109,9 @@ Seasons follow Pakistan's calendar: Winter (Dec–Feb), Spring (Mar–Apr), Summ
 
 ## Deploying the website
 
-The website is just two files (`index.html` and `data.json`), so Vercel hosts it as a plain static site. The Vercel project is connected to this GitHub repo with:
+The website is just two files (`index.html` and `data.json`), so Vercel hosts it as a plain static site. `vercel.json` tells Vercel exactly that: use no framework and serve the `website/` folder. Without it, Vercel sees `main.py` and wrongly treats the whole repo as a Python web server.
 
-- **Root Directory:** `website`
-- **Framework Preset:** Other
-
-Every push to `main` publishes a new version automatically. So to update the live site: run `python main.py`, then `python export_data.py`, then commit and push.
+Vercel is connected to this GitHub repo, so every push to `main` publishes a new version automatically. So to update the live site: run `python main.py`, then `python export_data.py`, then commit and push.
 
 ## Project files
 
@@ -129,6 +126,7 @@ lahore-weather-etl/
 ├── website/
 │   ├── index.html      The website
 │   └── data.json       The website's data (created by export_data.py)
+├── vercel.json         Tells Vercel to serve the website folder
 ├── lahore_weather.db   The database (created by main.py)
 └── requirements.txt    Libraries to install
 ```
