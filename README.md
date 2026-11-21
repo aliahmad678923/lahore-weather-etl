@@ -109,12 +109,12 @@ Seasons follow Pakistan's calendar: Winter (Dec–Feb), Spring (Mar–Apr), Summ
 
 ## Deploying the website
 
-The website is just two files (`index.html` and `data.json`), so Vercel hosts it as a plain static site. To publish a new version after changing the data or the page:
+The website is just two files (`index.html` and `data.json`), so Vercel hosts it as a plain static site. The Vercel project is connected to this GitHub repo with:
 
-```
-cd website
-npx vercel deploy --prod
-```
+- **Root Directory:** `website`
+- **Framework Preset:** Other
+
+Every push to `main` publishes a new version automatically. So to update the live site: run `python main.py`, then `python export_data.py`, then commit and push.
 
 ## Project files
 
