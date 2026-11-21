@@ -17,7 +17,7 @@
 
 The data comes from the free **Open-Meteo Historical Weather API**. No account or API key needed.
 
-**Live website:** *link will be added here once it's deployed.*
+**Live website:** https://lahore-weather-etl-eta.vercel.app/
 
 ## Setting it up
 
