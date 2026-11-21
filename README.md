@@ -11,9 +11,13 @@
 | **Pydantic** | Checks every row follows our rules (Transform) |
 | **SQLite** | Stores the clean data in one file, `lahore_weather.db` (Load) |
 | **Jupyter Notebook** | Where the analysis lives (EDA) |
-| **matplotlib + seaborn** | Draw the charts |
+| **matplotlib + seaborn** | Draw the charts in the notebook |
+| **HTML + Plotly.js** | The website's page and its interactive charts (hover, zoom) |
+| **Vercel** | Hosts the website for free |
 
 The data comes from the free **Open-Meteo Historical Weather API**. No account or API key needed.
+
+**Live website:** *link will be added here once it's deployed.*
 
 ## Setting it up
 
@@ -58,12 +62,22 @@ jupyter notebook eda.ipynb
 
 It opens in your browser. Click **Run → Run All Cells** to rerun everything. The notebook already has its results saved, so you can also just read it without running anything (GitHub shows it too).
 
+**Step 3: update and open the website:**
+
+```
+python export_data.py
+python -m http.server 8000 -d website
+```
+
+The first command saves the results into `website/data.json`. The second one serves the website: open http://localhost:8000 in your browser. Press `Ctrl+C` in the terminal to stop it.
+
 Running `main.py` again is safe. It rebuilds the table from scratch, so no duplicate rows.
 
 ## How it works
 
 ```
 Open-Meteo API  →  extract.py  →  transform.py  →  load.py  →  lahore_weather.db  →  eda.ipynb
+                                                                                  →  export_data.py  →  website/
 ```
 
 **`extract.py`**: asks the API for Lahore's daily max/min temperature, rainfall, humidity and wind speed from 1 Jan 2020 to 31 Dec 2025, and returns the response.
@@ -89,6 +103,19 @@ Seasons follow Pakistan's calendar: Winter (Dec–Feb), Spring (Mar–Apr), Summ
 5. Correlation heatmap
 6. Heatwave days (a *hot day* is 40°C or more; a *heatwave day* is part of 3+ hot days in a row)
 
+**`export_data.py`**: reads `lahore_weather.db`, does the same calculations as the notebook (yearly averages, monthly rain, seasons, correlation, heatwave days) and saves the results into `website/data.json`. All the maths stays in Python.
+
+**`website/index.html`**: the website. It loads `data.json` and draws it: summary cards, six tabs with interactive charts (hover for exact values, drag to zoom, double-click to zoom out, click a legend item to hide it), a year picker for the heatwave chart and a table of the data. It never calls the weather API, so it keeps working even if Open-Meteo is down.
+
+## Deploying the website
+
+The website is just two files (`index.html` and `data.json`), so Vercel hosts it as a plain static site. To publish a new version after changing the data or the page:
+
+```
+cd website
+npx vercel deploy --prod
+```
+
 ## Project files
 
 ```
@@ -98,6 +125,10 @@ lahore-weather-etl/
 ├── load.py             Step 3: save into SQLite
 ├── main.py             Runs steps 1–3
 ├── eda.ipynb           The analysis
+├── export_data.py      Saves the results for the website
+├── website/
+│   ├── index.html      The website
+│   └── data.json       The website's data (created by export_data.py)
 ├── lahore_weather.db   The database (created by main.py)
 └── requirements.txt    Libraries to install
 ```
@@ -107,3 +138,4 @@ lahore-weather-etl/
 - **`pip` or `python` not found**: try `py -m pip install -r requirements.txt` and `py main.py` (Windows).
 - **Connection error when running `main.py`**: check your internet. The API needs to be reachable.
 - **Notebook says `no such table: daily_weather`**: run `python main.py` first so the database exists.
+- **Website is blank when you double-click `index.html`**: browsers block it from loading `data.json` that way. Use `python -m http.server 8000 -d website` and open http://localhost:8000 instead.

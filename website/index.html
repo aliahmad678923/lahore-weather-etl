@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lahore Weather 2020–2025</title>
+  <meta name="description" content="How Lahore's weather changed from 2020 to 2025: temperature trends, monsoon rainfall, seasons and heatwave days.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #0b0b0b;
+      --muted: #6b6a66;
+      --line: #e1e0d9;
+      --page: #fafaf8;
+      --card: #ffffff;
+      --blue: #2a78d6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--page);
+    }
+    main { max-width: 1100px; margin: 0 auto; padding: 32px 16px 48px; }
+    h1 { font-size: 2rem; margin: 0 0 6px; }
+    h2 { font-size: 1.2rem; margin: 28px 0 8px; }
+    .subtitle { color: var(--muted); margin: 0 0 24px; }
+
+    /* Summary cards */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 12px; margin-bottom: 28px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+    .card .label { color: var(--muted); font-size: 0.85rem; }
+    .card .value { font-size: 1.8rem; margin-top: 4px; }
+    .card .note { color: var(--muted); font-size: 0.8rem; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+    .tabs button {
+      border: 0; background: none; padding: 10px 14px; font: inherit; color: var(--muted);
+      cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
+    }
+    .tabs button.active { color: var(--blue); border-bottom-color: var(--blue); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Charts, tables, controls */
+    .chart { width: 100%; height: 380px; }
+    .caption { color: var(--muted); font-size: 0.9rem; margin: 4px 0 0; }
+    .table-wrap { overflow: auto; max-height: 460px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { position: sticky; top: 0; background: #f3f2ee; }
+    label { font-size: 0.9rem; }
+    select { font: inherit; padding: 6px 8px; margin-left: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
+    footer { color: var(--muted); font-size: 0.85rem; margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--line); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Lahore Weather 2020–2025</h1>
+  <p class="subtitle">Daily weather from the Open-Meteo Historical Weather API, cleaned with pandas, validated with Pydantic and stored in SQLite.</p>
+
+  <div class="cards">
+    <div class="card"><div class="label">Days</div><div class="value" id="days">–</div></div>
+    <div class="card"><div class="label">Avg high (°C)</div><div class="value" id="avg-high">–</div></div>
+    <div class="card"><div class="label">Hottest (°C)</div><div class="value" id="hottest">–</div><div class="note" id="hottest-date"></div></div>
+    <div class="card"><div class="label">Total rain (mm)</div><div class="value" id="total-rain">–</div></div>
+    <div class="card"><div class="label">Heatwave days</div><div class="value" id="heatwave-total">–</div></div>
+  </div>
+
+  <nav class="tabs">
+    <button data-tab="temperature" class="active">Temperature</button>
+    <button data-tab="rainfall">Rainfall</button>
+    <button data-tab="seasons">Seasons</button>
+    <button data-tab="correlation">Correlation</button>
+    <button data-tab="heatwaves">Heatwaves</button>
+    <button data-tab="data">Data</button>
+  </nav>
+
+  <section class="panel active" id="temperature">
+    <h2>Average temperature per year</h2>
+    <div class="chart" id="chart-yearly-temp"></div>
+    <p class="caption">There's no steady rise: 2022 had the hottest days, 2023 was the coolest year and 2025 had the warmest nights.</p>
+  </section>
+
+  <section class="panel" id="rainfall">
+    <h2>Average rainfall per month</h2>
+    <div class="chart" id="chart-monthly-rain"></div>
+    <p class="caption">Dark blue = monsoon months (July to September), by far the wettest part of the year.</p>
+    <h2>Rainfall per year: monsoon vs the rest of the year</h2>
+    <div class="chart" id="chart-yearly-rain"></div>
+    <p class="caption">Monsoon rain rose from 208 mm in 2021 to 669 mm in 2025.</p>
+  </section>
+
+  <section class="panel" id="seasons">
+    <h2>An average day in each season</h2>
+    <div class="table-wrap"><table id="season-table"></table></div>
+    <h2>Daily high temperature by season</h2>
+    <div class="chart" id="chart-season-box"></div>
+    <p class="caption">Box = the middle half of days, line = median, dots = unusual days. Hover over a box for the exact numbers.</p>
+  </section>
+
+  <section class="panel" id="correlation">
+    <h2>How the weather variables move together</h2>
+    <div class="chart" id="chart-correlation" style="height: 460px"></div>
+    <p class="caption">+1 = they rise together, −1 = one rises as the other falls, 0 = no link.</p>
+  </section>
+
+  <section class="panel" id="heatwaves">
+    <p>A <b>hot day</b> has a high of <b>40 °C or more</b>. A <b>heatwave day</b> is a hot day that's part of <b>3 or more hot days in a row</b>.</p>
+    <h2>Heatwave days per year</h2>
+    <div class="chart" id="chart-heatwaves"></div>
+    <h2>Daily highs in one year</h2>
+    <label>Pick a year <select id="heat-year"></select></label>
+    <div class="chart" id="chart-daily-highs"></div>
+    <p class="caption">Drag across the chart to zoom in, double-click to zoom out.</p>
+  </section>
+
+  <section class="panel" id="data">
+    <h2>The data in lahore_weather.db</h2>
+    <label>Year <select id="data-year"></select></label>
+    <p class="caption" id="data-count"></p>
+    <div class="table-wrap"><table id="data-table"></table></div>
+  </section>
+
+  <footer>Source: Open-Meteo Historical Weather API (archive-api.open-meteo.com) · Lahore, 1 Jan 2020 to 31 Dec 2025.</footer>
+</main>
+
+<script>
+  const BLUE = "#2a78d6";
+  const LIGHT_BLUE = "#9ec5f4";
+  const ORANGE = "#eb6834";
+  const RED = "#e34948";
+  const GREY = "#898781";
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const SEASONS = ["Winter", "Spring", "Summer", "Monsoon", "Autumn"];
+  const COLUMNS = ["temp_max", "temp_min", "rainfall", "humidity", "wind_speed"];
+  const LABELS = {
+    date: "Date", season: "Season",
+    temp_max: "High (°C)", temp_min: "Low (°C)", rainfall: "Rain (mm)",
+    humidity: "Humidity (%)", wind_speed: "Wind (km/h)",
+  };
+
+  // Draw one Plotly chart with the same clean look as all the others
+  function draw(id, traces, unit = "", extraLayout = {}) {
+    const layout = {
+      margin: { l: 60, r: 10, t: 10, b: 40 },
+      font: { family: "system-ui, -apple-system, Segoe UI, sans-serif", size: 12 },
+      legend: { orientation: "h", y: 1.15 },
+      yaxis: { gridcolor: "#e1e0d9", ticksuffix: unit ? " " + unit : "" },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
+      ...extraLayout,
+    };
+    // No toolbar: hover, drag-to-zoom and double-click-to-reset still work without it
+    Plotly.newPlot(id, traces, layout, { responsive: true, displayModeBar: false });
+  }
+
+  // Show numbers with one decimal (JSON turns 26.0 into 26); humidity readings are whole numbers
+  function formatCell(value, column) {
+    if (typeof value !== "number") return value;
+    return column === "humidity" && Number.isInteger(value) ? value : value.toFixed(1);
+  }
+
+  // Fill an HTML table from a list of rows
+  function fillTable(id, rows, columns) {
+    const head = columns.map(c => `<th>${LABELS[c]}</th>`).join("");
+    const body = rows.map(row => "<tr>" + columns.map(c => `<td>${formatCell(row[c], c)}</td>`).join("") + "</tr>").join("");
+    document.getElementById(id).innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+  }
+
+  // Fill a year dropdown and redraw when the user picks a different year
+  function fillYearPicker(id, years, selected, onChange) {
+    const select = document.getElementById(id);
+    select.innerHTML = years.map(y => `<option ${y === selected ? "selected" : ""}>${y}</option>`).join("");
+    select.onchange = () => onChange(Number(select.value));
+    onChange(selected);
+  }
+
+  function showData(data) {
+    // Summary cards
+    const s = data.summary;
+    document.getElementById("days").textContent = s.days.toLocaleString("en-US");
+    document.getElementById("avg-high").textContent = s.avg_high;
+    document.getElementById("hottest").textContent = s.hottest_temp;
+    document.getElementById("hottest-date").textContent = s.hottest_date;
+    document.getElementById("total-rain").textContent = s.total_rain.toLocaleString("en-US");
+    document.getElementById("heatwave-total").textContent = s.heatwave_days;
+
+    // One function per tab. Each runs the first time its tab is opened,
+    // because a chart drawn inside a hidden tab gets the wrong width.
+    const drawTab = {
+      temperature() {
+        draw("chart-yearly-temp", [
+          { x: data.years, y: data.yearly_high, name: "Average daily high", mode: "lines+markers",
+            line: { color: ORANGE, width: 2 }, marker: { size: 8 }, hovertemplate: "%{y:.1f} °C" },
+          { x: data.years, y: data.yearly_low, name: "Average daily low", mode: "lines+markers",
+            line: { color: BLUE, width: 2 }, marker: { size: 8 }, hovertemplate: "%{y:.1f} °C" },
+        ], "°C", { hovermode: "x unified", xaxis: { dtick: 1 } });
+      },
+
+      rainfall() {
+        draw("chart-monthly-rain", [{
+          type: "bar", x: MONTHS, y: data.monthly_rain,
+          marker: { color: MONTHS.map((m, i) => (i >= 6 && i <= 8) ? BLUE : LIGHT_BLUE) },
+          hovertemplate: "%{x}: %{y:.1f} mm<extra></extra>",
+        }], "mm");
+
+        draw("chart-yearly-rain", [
+          { type: "bar", x: data.years, y: data.monsoon_rain, name: "Monsoon",
+            marker: { color: BLUE, line: { color: "white", width: 2 } }, hovertemplate: "%{y:.0f} mm" },
+          { type: "bar", x: data.years, y: data.other_rain, name: "Rest of the year",
+            marker: { color: LIGHT_BLUE, line: { color: "white", width: 2 } }, hovertemplate: "%{y:.0f} mm" },
+        ], "mm", { barmode: "stack", hovermode: "x unified", xaxis: { dtick: 1 } });
+      },
+
+      seasons() {
+        fillTable("season-table", data.seasons, ["season", ...COLUMNS]);
+        draw("chart-season-box", SEASONS.map(season => ({
+          type: "box", name: season, showlegend: false, marker: { color: BLUE },
+          y: data.days.filter(day => day.season === season).map(day => day.temp_max),
+        })), "°C");
+      },
+
+      correlation() {
+        const names = COLUMNS.map(c => LABELS[c]);
+        draw("chart-correlation", [{
+          type: "heatmap", z: data.correlation, x: names, y: names,
+          zmin: -1, zmax: 1, colorscale: [[0, BLUE], [0.5, "#f0efec"], [1, RED]],
+          text: data.correlation, texttemplate: "%{text:.2f}",
+          hovertemplate: "%{y} & %{x}: %{z:.2f}<extra></extra>",
+        }], "", { yaxis: { autorange: "reversed" }, margin: { l: 100, r: 10, t: 10, b: 60 } });
+      },
+
+      heatwaves() {
+        draw("chart-heatwaves", [{
+          type: "bar", x: data.years, y: data.heatwave_days, customdata: data.hot_days,
+          marker: { color: ORANGE },
+          hovertemplate: "%{x}: %{y} heatwave days (%{customdata} hot days)<extra></extra>",
+        }], "days", { xaxis: { dtick: 1 } });
+
+        // Start on the year with the most heatwave days
+        const busiestYear = data.years[data.heatwave_days.indexOf(Math.max(...data.heatwave_days))];
+        fillYearPicker("heat-year", data.years, busiestYear, year => {
+          const days = data.days.filter(day => day.date.startsWith(year));
+          const heatwave = days.filter(day => day.heatwave_day);
+          draw("chart-daily-highs", [
+            { x: days.map(d => d.date), y: days.map(d => d.temp_max), name: "Daily high", mode: "lines",
+              line: { color: GREY, width: 1.5 }, hovertemplate: "%{x|%d %b}: %{y} °C<extra></extra>" },
+            { x: heatwave.map(d => d.date), y: heatwave.map(d => d.temp_max), name: "Heatwave day", mode: "markers",
+              marker: { color: ORANGE, size: 8 }, hovertemplate: "%{x|%d %b}: %{y} °C (heatwave)<extra></extra>" },
+          ], "°C", {
+            shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 40, y1: 40, line: { color: GREY, dash: "dash", width: 1 } }],
+            annotations: [{ xref: "paper", x: 0, y: 40, text: "40 °C", showarrow: false, xanchor: "left", yshift: 10, font: { color: GREY } }],
+          });
+        });
+      },
+
+      data() {
+        fillYearPicker("data-year", data.years, data.years[0], year => {
+          const rows = data.days.filter(day => day.date.startsWith(year));
+          document.getElementById("data-count").textContent = `${rows.length} days in ${year}`;
+          fillTable("data-table", rows, ["date", ...COLUMNS, "season"]);
+        });
+      },
+    };
+
+    // Tab switching
+    const drawn = new Set();
+    function openTab(name) {
+      document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+      document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === name));
+      if (!drawn.has(name)) {
+        drawTab[name]();
+        drawn.add(name);
+      }
+    }
+    document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => openTab(b.dataset.tab));
+    openTab("temperature");
+  }
+
+  // data.json is created from lahore_weather.db by export_data.py
+  fetch("data.json")
+    .then(response => response.json())
+    .then(showData);
+</script>
+</body>
+</html>
